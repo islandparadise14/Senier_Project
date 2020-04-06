@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Senier_Project</string>
+    <string name="convert_start">변환 시작</string>
+    <string name="hello_hangul">안녕하세요</string>
+</resources>
