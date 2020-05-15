@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "196123336255",
+    "firebase_url": "https://senier-project-9bc67.firebaseio.com",
+    "project_id": "senier-project-9bc67",
+    "storage_bucket": "senier-project-9bc67.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196123336255:android:4dc28ab43fb4745a47228a",
+        "android_client_info": {
+          "package_name": "com.example.senier_project"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "196123336255-lelv9bephbmoihr6hkviagi9rgbqntht.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-L9WHORBvi9yg4kD1e28BFat4KLk7vZo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "196123336255-lelv9bephbmoihr6hkviagi9rgbqntht.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
