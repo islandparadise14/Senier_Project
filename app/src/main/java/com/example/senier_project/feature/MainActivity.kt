@@ -4,36 +4,39 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Matrix
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
+import android.os.SystemClock
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
 import android.view.ViewGroup
 import android.widget.Button
+import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.senier_project.R
 import com.example.senier_project.global.Consts
+import com.example.senier_project.global.StopWord
 import com.example.senier_project.koin.repository.SharedPrefRepository
 import com.example.senier_project.utils.*
-import kotlinx.android.synthetic.main.activity_main.*
-import org.koin.android.ext.android.inject
-import timber.log.Timber
-import java.util.concurrent.Executors
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import com.google.firebase.ml.vision.FirebaseVision
 import com.google.firebase.ml.vision.common.FirebaseVisionImage
 import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata
+import kotlinx.android.synthetic.main.activity_main.*
+import kr.co.shineware.nlp.posta.en.core.EnPosta
+import org.koin.android.ext.android.inject
+import timber.log.Timber
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity(), LifecycleOwner {
     private val sharedPrefRepository: SharedPrefRepository by inject()
     private lateinit var mHandler: Handler
+
+    private val analysisedWords: HashMap<String, Int> = HashMap()
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
@@ -45,6 +48,11 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
     lateinit var imageCapture: ImageCapture
     lateinit var analyzerUseCase: ImageAnalysis
     private var mMode: ModeState = ModeState.NORMAL
+
+    private val MIN_CLICK_INTERVAL: Long = 3000
+
+    //마지막으로 클릭한 시간
+    private var mLastClickTime: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -184,6 +192,15 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
         }
 
         override fun analyze(imageProxy: ImageProxy?, degrees: Int) {
+            val currentClickTime: Long = SystemClock.uptimeMillis()
+            //이전에 클릭한 시간과 현재시간의 차이
+            val elapsedTime = currentClickTime - mLastClickTime
+
+            if (elapsedTime <= MIN_CLICK_INTERVAL) return
+
+            //마지막클릭시간 업데이트
+            mLastClickTime = currentClickTime
+
             if (mMode == ModeState.ANALYZERING) {
                 val mediaImage = imageProxy?.image
                 val imageRotation = degreesToFirebaseRotation(degrees)
@@ -193,8 +210,6 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                     val detector = FirebaseVision.getInstance().onDeviceTextRecognizer
                     detector.processImage(image).addOnSuccessListener { firebaseVisionText ->
                         // Task completed successfully
-                        // ...
-                        val resultText = firebaseVisionText.text
                         for (block in firebaseVisionText.textBlocks) {
                             val resultList = ArrayList<String>()
                             for (line in block.lines) {
@@ -203,6 +218,10 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                             }
                             for ((index, item) in resultList.withIndex()) {
                                 Timber.d("text: index$index = $item")
+                                for (jaso in item.split(" ")) {
+                                    if (!StopWord.set.contains(jaso))
+                                        analysisedWords[jaso] = analysisedWords.getOrDefault(jaso, 0) + 1
+                                }
                                 when (index) {
                                     0 -> { textView.text = item }
                                     1 -> { textView2.text = item }
@@ -221,10 +240,14 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
     /*--------------------------------------------------------------------------------------------*/
 
     private fun initView() {
+        Thread(Runnable {
+            'ㄱ'.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 50))
+        }).start()
         startMos.setOnClickListener {
             when (mMode) {
                 ModeState.NORMAL -> {
                     (it as Button).text = "분석 종료 & 텍스트 변환"
+                    analysisedWords.clear()
                     mMode = ModeState.ANALYZERING
                 }
                 ModeState.ANALYZERING -> {
@@ -255,7 +278,7 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
     }
 
     private fun startConvertToMosVibrator() {
-        val jasoList = ""
+        val jasoList = "안녕하세요"
         Timber.d("분해 : $jasoList")
         Thread(Runnable {
             jasoList.map {
@@ -263,7 +286,6 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                 it.koToMosNumber()
             }.join().forEach {
                 it.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 50))
-                it
             }
             val message = Message().apply {
                 this.data.putString("", MosMessage.MOS_SHORT.text)
