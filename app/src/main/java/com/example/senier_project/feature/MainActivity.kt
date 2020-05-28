@@ -302,7 +302,6 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                     }
                 }
             }
-            false
         })
         mTextHandler = Handler(Handler.Callback { msg: Message ->
             val string = msg.data.getString(Consts.TEXT_KEY) ?: ""
