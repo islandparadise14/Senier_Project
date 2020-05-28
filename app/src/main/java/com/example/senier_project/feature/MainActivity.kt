@@ -226,7 +226,7 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                                 Timber.d("text: index$index = $item")
                                 for (word in item.replaceSign().split(" ")) {
                                     if (!StopWord.set.contains(word) && word != "")
-                                        analyzedWords[word] = analyzedWords.getOrDefault(word, 0) + 1
+                                        analyzedWords[word] = analyzedWords[word] ?: 0 + 1
                                 }
                                 if (mMode == ModeState.ANALYZERING) {
                                     textView.text = textView2.text.toString()

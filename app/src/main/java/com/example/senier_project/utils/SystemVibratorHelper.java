@@ -1,6 +1,7 @@
 package com.example.senier_project.utils;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 
@@ -21,7 +22,11 @@ public class SystemVibratorHelper {
             new Thread(() -> {
                 Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
                 assert vibrator != null;
-                vibrator.vibrate(VibrationEffect.createOneShot(50, 40));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(50, 40));
+                } else {
+                    vibrator.vibrate(50);
+                }
                 try {
                     Thread.sleep((1200 - 10 * (speed + 10))/3);
                 } catch (InterruptedException e) {
