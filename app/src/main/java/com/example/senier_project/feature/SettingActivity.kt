@@ -23,7 +23,7 @@ class SettingActivity : AppCompatActivity() {
     }
 
     private fun initView() {
-        speedSeekBar.progress = sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 50)
+        speedSeekBar.progress = sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 10)
         speedSeekBar.setOnSeekBarChangeListener(object :SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 SystemVibratorHelper.getInstance().startVibrator(this@SettingActivity, progress)

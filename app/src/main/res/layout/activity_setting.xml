@@ -17,7 +17,7 @@
         android:layout_marginTop="20dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        android:text="속도" />
+        android:text="Speed" />
 
     <com.example.senier_project.customview.VerticalSeekBar
         android:id="@+id/speedSeekBar"

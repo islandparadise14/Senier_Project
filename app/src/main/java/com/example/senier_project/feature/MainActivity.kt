@@ -1,6 +1,7 @@
 package com.example.senier_project.feature
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Matrix
@@ -11,6 +12,7 @@ import android.os.SystemClock
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -20,6 +22,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.senier_project.R
 import com.example.senier_project.global.Consts
+import com.example.senier_project.global.MosWord
 import com.example.senier_project.global.StopWord
 import com.example.senier_project.koin.repository.SharedPrefRepository
 import com.example.senier_project.utils.*
@@ -27,16 +30,19 @@ import com.google.firebase.ml.vision.FirebaseVision
 import com.google.firebase.ml.vision.common.FirebaseVisionImage
 import com.google.firebase.ml.vision.common.FirebaseVisionImageMetadata
 import kotlinx.android.synthetic.main.activity_main.*
-import kr.co.shineware.nlp.posta.en.core.EnPosta
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity(), LifecycleOwner {
     private val sharedPrefRepository: SharedPrefRepository by inject()
-    private lateinit var mHandler: Handler
+    private lateinit var mMosHandler: Handler
+    private lateinit var mTextHandler: Handler
+    private lateinit var mBlockHandler: Handler
 
-    private val analysisedWords: HashMap<String, Int> = HashMap()
+    private val analyzedWords: HashMap<String, Int> = HashMap()
+    private val analyzedWordList: ArrayList<Map.Entry<String, Int>> = ArrayList()
+    private lateinit var sortedAnalyzedWord: List<Map.Entry<String, Int>>
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
@@ -44,9 +50,9 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
 
     private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
-    lateinit var preview: Preview
-    lateinit var imageCapture: ImageCapture
-    lateinit var analyzerUseCase: ImageAnalysis
+    private lateinit var preview: Preview
+    private lateinit var imageCapture: ImageCapture
+    private lateinit var analyzerUseCase: ImageAnalysis
     private var mMode: ModeState = ModeState.NORMAL
 
     private val MIN_CLICK_INTERVAL: Long = 3000
@@ -214,20 +220,29 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                             val resultList = ArrayList<String>()
                             for (line in block.lines) {
                                 val lineText = line.text
-                                if (resultList.size < 5) resultList.add(lineText)
+                                resultList.add(lineText)
                             }
                             for ((index, item) in resultList.withIndex()) {
                                 Timber.d("text: index$index = $item")
-                                for (jaso in item.split(" ")) {
-                                    if (!StopWord.set.contains(jaso))
-                                        analysisedWords[jaso] = analysisedWords.getOrDefault(jaso, 0) + 1
+                                for (word in item.replaceSign().split(" ")) {
+                                    if (!StopWord.set.contains(word) && word != "")
+                                        analyzedWords[word] = analyzedWords.getOrDefault(word, 0) + 1
                                 }
-                                when (index) {
-                                    0 -> { textView.text = item }
-                                    1 -> { textView2.text = item }
-                                    2 -> { textView3.text = item }
-                                    3 -> { textView4.text = item }
-                                    4 -> { textView5.text = item }
+                                if (mMode == ModeState.ANALYZERING) {
+                                    textView.text = textView2.text.toString()
+                                    textView2.text = textView3.text.toString()
+                                    textView3.text = textView4.text.toString()
+                                    textView4.text = textView5.text.toString()
+                                    textView5.text = textView6.text.toString()
+                                    textView6.text = textView7.text.toString()
+                                    textView7.text = textView8.text.toString()
+                                    textView8.text = textView9.text.toString()
+                                    textView9.text = textView10.text.toString()
+                                    textView10.text = textView11.text.toString()
+                                    textView11.text = textView12.text.toString()
+                                    textView12.text = item
+                                } else {
+                                    clearText()
                                 }
                             }
                         }
@@ -239,58 +254,121 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
 
     /*--------------------------------------------------------------------------------------------*/
 
+    @SuppressLint("SetTextI18n")
     private fun initView() {
         Thread(Runnable {
-            'ㄱ'.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 50))
+            while (true) {
+                Thread.sleep(1000)
+                if (mMode == ModeState.ANALYZERING) {
+                    this@MainActivity.vibrateSystem()
+                }
+            }
         }).start()
         startMos.setOnClickListener {
             when (mMode) {
                 ModeState.NORMAL -> {
-                    (it as Button).text = "분석 종료 & 텍스트 변환"
-                    analysisedWords.clear()
+                    (it as Button).text = "End of analysis & text conversion"
+                    analyzedWords.clear()
+                    analyzedWordList.clear()
+                    analyzedText.text = ""
+                    mosText.text = ""
                     mMode = ModeState.ANALYZERING
                 }
                 ModeState.ANALYZERING -> {
-                    (it as Button).text = "분석 시작"
+                    (it as Button).text = "Tab screen to start analysis"
                     mMode = ModeState.NORMAL
+                    clearText()
+                    profiling()
                 }
             }
         }
         setting.setOnClickListener {
             navigateToSetting()
         }
-        mHandler = Handler(Handler.Callback { message ->
-            MosMessage.stringToMos(message.data.getString("")).let {
+        mMosHandler = Handler(Handler.Callback { message ->
+            MosMessage.stringToMos(message.data.getString(Consts.MOS_KEY)).let {
                 when (it) {
                     MosMessage.MOS_SHORT -> {
+                        mosText.text = mosText.text.toString() + MosWord.mosShort
                         return@Callback true
                     }
                     MosMessage.MOS_LONG -> {
+                        mosText.text = mosText.text.toString() + MosWord.mosLong
                         return@Callback true
                     }
                     MosMessage.BLANK -> {
+                        mosText.text = ""
                         return@Callback true
                     }
                 }
             }
             false
         })
+        mTextHandler = Handler(Handler.Callback { msg: Message ->
+            val string = msg.data.getString(Consts.TEXT_KEY) ?: ""
+            mosText.text = mosText.text.toString() + " "
+            analyzedText.text = analyzedText.text.toString() + string
+            return@Callback true
+        })
+        mBlockHandler = Handler(Handler.Callback { msg: Message ->
+            if (msg.data.getBoolean(Consts.BLOCK_KEY))
+                blockView.visibility = View.VISIBLE
+            else blockView.visibility = View.GONE
+
+            return@Callback true
+        })
+    }
+
+    private fun clearText() {
+        textView.text = ""
+        textView2.text = ""
+        textView3.text = ""
+        textView4.text = ""
+        textView5.text = ""
+        textView6.text = ""
+        textView7.text = ""
+        textView8.text = ""
+        textView9.text = ""
+        textView10.text = ""
+        textView11.text = ""
+        textView12.text = ""
+    }
+
+    private fun profiling() {
+        analyzedWords.forEach { entry ->
+            analyzedWordList.add(entry)
+        }
+        sortedAnalyzedWord = analyzedWordList.sortedWith(Comparator { o1, o2 ->
+            return@Comparator o2.value - o1.value
+        })
+        startConvertToMosVibrator()
     }
 
     private fun startConvertToMosVibrator() {
-        val jasoList = "안녕하세요"
-        Timber.d("분해 : $jasoList")
         Thread(Runnable {
-            jasoList.map {
-                Timber.d("문자당 모스신호: ${it.koToMosNumber()}")
-                it.koToMosNumber()
+            mBlockHandler.sendMessage(Message().apply { this.data.putBoolean(Consts.BLOCK_KEY, true) })
+            Thread.sleep(1000)
+            mBlockHandler.sendMessage(Message().apply { this.data.putBoolean(Consts.BLOCK_KEY, false) })
+            sortedAnalyzedWord.mapIndexed { index, entry ->
+                if (index < 5) "${entry.key} " else ""
             }.join().forEach {
-                it.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 50))
+                val message = Message().apply {
+                    this.data.putString(Consts.TEXT_KEY, it.toString())
+                }
+                mTextHandler.sendMessage(message)
+                it.enToMosNumber().forEach { char ->
+                    mMosHandler.sendMessage(Message().apply {
+                        val mos = when (char) {
+                            '1' -> MosMessage.MOS_SHORT.text
+                            '2' -> MosMessage.MOS_LONG.text
+                            else -> " "
+                        }
+                        this.data.putString(Consts.MOS_KEY, mos)
+                    })
+                    char.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 10))
+                }
+                Thread.sleep(300)
             }
-            val message = Message().apply {
-                this.data.putString("", MosMessage.MOS_SHORT.text)
-            }
-            mHandler.sendMessage(message)
         }).start()
     }
 
