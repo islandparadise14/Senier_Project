@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
     private lateinit var mMosHandler: Handler
     private lateinit var mTextHandler: Handler
     private lateinit var mBlockHandler: Handler
+    private lateinit var mEndProfiling: Handler
 
     private val analyzedWords: HashMap<String, Int> = HashMap()
     private val analyzedWordList: ArrayList<Map.Entry<String, Int>> = ArrayList()
@@ -275,11 +276,12 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                     mMode = ModeState.ANALYZERING
                 }
                 ModeState.ANALYZERING -> {
-                    (it as Button).text = "Tab screen to start analysis"
-                    mMode = ModeState.NORMAL
+                    (it as Button).text = "Printing Result"
+                    mMode = ModeState.PROFILING
                     clearText()
                     profiling()
                 }
+                ModeState.PROFILING -> {}
             }
         }
         setting.setOnClickListener {
@@ -314,6 +316,11 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                 blockView.visibility = View.VISIBLE
             else blockView.visibility = View.GONE
 
+            return@Callback true
+        })
+        mEndProfiling = Handler(Handler.Callback { msg: Message ->
+            startMos.text = "Tab screen to start analysis"
+            mMode = ModeState.NORMAL
             return@Callback true
         })
     }
@@ -366,8 +373,9 @@ class MainActivity : AppCompatActivity(), LifecycleOwner {
                     })
                     char.mosToVibrate(this, sharedPrefRepository.getPrefsIntValue(Consts.SPEED_SETTING, 10))
                 }
-                Thread.sleep(300)
+                Thread.sleep(600)
             }
+            mEndProfiling.sendMessage(Message())
         }).start()
     }
 
